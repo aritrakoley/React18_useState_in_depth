@@ -80,3 +80,66 @@ const Example2 = () => {
 
 export default Example2;
 ```
+
+### State Updates Are Automatically Batched
+
+In general, if you have multiple state updates one after the other, they will not trigger re-renders after each one. Instead, the updates will be grouped (i.e. batched) together and only one re-render will trigger. This has performance benefits.
+
+In the following code, even though there are 2 state updates within each of the click handlers, there will be only one re-render triggered for each button click.
+
+Note: React 17 and below behave the same for React event handlers but do not batch state updates for promises, setTimeout calls, native event handlers, or any other event.
+
+> [React 18: Automatic Batching Blog post](https://react.dev/blog/2022/03/29/react-v18#whats-new-in-react-18) > [React 18: Automatic Batching Github Discussion](https://github.com/reactwg/react-18/discussions/21)
+
+```jsx
+import React, { useState } from "react";
+
+// Example 3: State Updates Are Automatically Batched
+let render = 0;
+
+const Example3 = () => {
+  const [type, setType] = useState("");
+  const [color, setColor] = useState("");
+
+  const handlePetAClick = () => {
+    setType("Dog");
+    setColor("Black");
+  };
+
+  const handlePetBClick = () => {
+    setType("Cat");
+    setColor("White");
+  };
+
+  const handlePetCClick = () => {
+    fetch("https://jsonplaceholder.typicode.com/todos/1").then((response) => {
+      console.log("fetch complete");
+      setType("Hamster");
+      setColor("Brown");
+    });
+  };
+
+  render++;
+  console.log("E3 render: ", render);
+  return (
+    <>
+      <hr />
+      <h4>Example 3: State Updates Are Automatically Batched</h4>
+      <h1>Pet Type: {type}</h1>
+      <h1>Pet Color: {color}</h1>
+      <button onClick={handlePetAClick}>Pet A</button>
+      <button onClick={handlePetBClick}>Pet B</button>
+      <button onClick={handlePetCClick}>Get Pet C</button>
+      <hr />
+    </>
+  );
+};
+
+export default Example3;
+```
+
+That covers the basics before we head into the somewhat confusing behaviours.
+
+TODO
+
+1. Updating count twice 4 different variations
