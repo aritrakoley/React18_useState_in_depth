@@ -140,6 +140,266 @@ export default Example3;
 
 That covers the basics before we head into the somewhat confusing behaviours.
 
-TODO
+## Onward To Quirkisthan
 
 1. Updating count twice 4 different variations
+
+### Case 1: Naive attempt at multiple updates to a single state
+
+In the following code, we just want to increment the `count` state twice on each click of the 'Increment' button. Doing it this way does not work.
+If we run this code and click the 'Increment' button we'll see that on each click, `count` is only incremented by 1.
+
+```jsx
+import React, { useState } from "react";
+
+// Example 4: Multiple updates to a single state
+
+const Example4 = () => {
+  const [count, setCount] = useState(0);
+
+  const handleClick = () => {
+    setCount(count + 1);
+    setCount(count + 1);
+  };
+
+  return (
+    <>
+      <hr />
+      <h4>Example 4: Naive attempt at multiple updates to a single state</h4>
+      <h1>{count}</h1>
+      <button onClick={handleClick}>Increment</button>
+      <hr />
+    </>
+  );
+};
+
+export default Example4;
+```
+
+To visualize what's going on, we'll add a bunch of `console.log` statements all over the code. Like so...
+
+```jsx
+import React, { useState } from "react";
+
+// Example 4: Multiple updates to a single state
+
+let render = 0;
+
+const Example4 = () => {
+  const [count, setCount] = useState(0);
+
+  render++;
+  console.log("Render:", render);
+
+  console.log("During render: count = ", count);
+
+  const handleClick = () => {
+    console.log("Before first setCount: count = ", count);
+    setCount(count + 1);
+
+    console.log("Before second setCount: count = ", count);
+    setCount(count + 1);
+
+    console.log("After second setCount: count = ", count);
+  };
+
+  return (
+    <>
+      <hr />
+      <h4>Example 4: Naive attempt at multiple updates to a single state</h4>
+      <h1>{count}</h1>
+      <button onClick={handleClick}>Increment</button>
+      <hr />
+    </>
+  );
+};
+
+export default Example4;
+```
+
+On clicking the 'Increment' button once, we get the following output in the console.
+Note that the value of `count` does not change once the component has been rendered, until it is rendered again. This is not a React or a useState specific behaviour. This is [JavaScript Closures](https://www.freecodecamp.org/news/lets-learn-javascript-closures-66feb44f6a44/) in action.
+
+![Console Output](src/assets/example4_console_output.png)
+
+Let's break it down,
+
+1. Initial render
+   1. useState hook called returning `count` variable and `setCount` function.
+      - Both `count` and `setCount` are local to the component function (i.e. they are only accessible within the component function's scope).
+      - Value of `count` is `0` (since initial state was set to `0`).
+   2. `During render: count =  0` is logged out to console.
+   3. 'Increment' button is clicked and `handleClick` function is called.
+   4. `Before first setCount: count =  0` is logged out to console.
+   5. `setCount` is called with argument as `1` ( since `count = 0`, `count + 1 = 0 + 1 = 1`).
+   6. `Before second setCount: count =  0` is logged out to console.
+   7. `setCount` is called with argument as `1` ( since `count = 0`, `count + 1 = 0 + 1 = 1`).
+      - `handleClick` is an inner function with `Example4` functional component acting as the outer function.
+      - `Example4`'s local variable (i.e. function scoped variable) `count` is used inside.`handleClick`
+      - `handleClick` might need to run long after `Example4` has finished running but if `Example4` completes running `count` will no longer be kept in memory and in turn garbage collected.
+      - `handleClick` needs to close over `count` forming a **closure** such that `handleClick` has access to a copy of `count` with the same value as when the closure was formed.
+      - The closure was formed when `Example4` was run.
+      - So, the value of `count` within `handleClick` does not change.
+   8. `After second setCount: count =  0` is logged out to console.
+   9. Only one re-render is triggered since both `setCount` calls are automatically batched.
+2. Second Render
+   1. useState hook called returning `count` variable and `setCount` function.
+      - Value of `count` is `1` (although `setCount` was called twice, both calls set `count` to `1`).
+   2. `During render: count =  1` is logged out to console.
+
+### Case 2: Multiple state updates using previous state value
+
+Just replacing the `setCount` calls in `Example4` with their alternatives which take a callback function as argument, gives us the behaviour we want. The callback itself takes the latest value the state as argument.
+
+```jsx
+import React, { useState } from "react";
+
+// Example 5: Multiple state updates using previous state value
+
+let render = 0;
+
+const Example5 = () => {
+  const [count, setCount] = useState(0);
+
+  render++;
+  console.log("Render:", render);
+
+  console.log("During render: count = ", count);
+
+  const handleClick = () => {
+    console.log("Before first setCount: count = ", count);
+    setCount((prevCount) => prevCount + 1);
+
+    console.log("Before second setCount: count = ", count);
+    setCount((prevCount) => prevCount + 1);
+
+    console.log("After second setCount: count = ", count);
+  };
+
+  return (
+    <>
+      <hr />
+      <h4>Example 5: Multiple state updates using previous state value</h4>
+      <h1>{count}</h1>
+      <button onClick={handleClick}>Increment</button>
+      <hr />
+    </>
+  );
+};
+
+export default Example5;
+```
+
+The output:
+
+![example5_console_output](src/assets/example5_console_output.png)
+
+The breakdown is identical with the key difference being in steps (5) and (7) where the state updates no longer depend on the value of `count` provided by the `handleClick` closure.
+So, even though the value of `count` in `handleClick` remains the same, the `setCount` calls never actually use the value, instead relying on the latest value of the `count` state received as the callback's argument.  
+However, state updates are still batched and there is still just one render even though `setCount` is called twice.
+
+### Case 3: Multiple state updates without batching
+
+To trigger a re-render for every state update instead of the default batching behaviour of state updates, we need to use `flushSync`.
+
+Let's see how that works:
+
+```jsx
+import React, { useState } from "react";
+import { flushSync } from "react-dom";
+
+// Example 6: Multiple state updates without batching
+
+let render = 0;
+
+const Example6 = () => {
+  const [count, setCount] = useState(0);
+
+  render++;
+  console.log("Render:", render);
+
+  console.log("During render: count = ", count);
+
+  const handleClick = () => {
+    console.log("Before first setCount: count = ", count);
+    flushSync(() => setCount(count + 1));
+
+    console.log("Before second setCount: count = ", count);
+    flushSync(() => setCount(count + 1));
+
+    console.log("After second setCount: count = ", count);
+  };
+
+  return (
+    <>
+      <hr />
+      <h4>Example 6: Multiple state updates without batching</h4>
+      <h1>{count}</h1>
+      <button onClick={handleClick}>Increment</button>
+      <hr />
+    </>
+  );
+};
+
+export default Example6;
+```
+
+This snippet has the same pitfall that Case 1 had with `count` being set to `1` for both `setCount` calls but since we're using `flushSync`, the component re-renders after each state update instead of batching them.
+Note that the `handleClick` function called from the initial render of the component is still running after the second and third re-renders. That explains the order of the console logs.
+
+![example5_console_output](src/assets/example6_console_output.png)
+
+The following diagram might help visualize the process.
+![example6_control_flow](src/assets/example6_control_flow.png)
+
+The key to actually incrementing `count` state twice is the same as in Case 2. Just pass a function to `setCount`.
+
+```jsx
+import React, { useState } from "react";
+import { flushSync } from "react-dom";
+
+// Example 7: Multiple state updates without batching
+
+let render = 0;
+
+const Example7 = () => {
+  const [count, setCount] = useState(0);
+
+  render++;
+  console.log("Render:", render);
+
+  console.log("During render: count = ", count);
+
+  const handleClick = () => {
+    console.log("Before first setCount: count = ", count);
+    flushSync(() => setCount((prevCount) => prevCount + 1));
+
+    console.log("Before second setCount: count = ", count);
+    flushSync(() => setCount((prevCount) => prevCount + 1));
+
+    console.log("After second setCount: count = ", count);
+  };
+
+  return (
+    <>
+      <hr />
+      <h4>Example 7: Multiple state updates without batching</h4>
+      <h1>{count}</h1>
+      <button onClick={handleClick}>Increment</button>
+      <hr />
+    </>
+  );
+};
+
+export default Example7;
+```
+
+Output:
+
+![example7_console_output](src/assets/example7_console_output.png)
+
+Control Flow:
+
+![example7_control_flow](src/assets/example7_control_flow.png)
+
+Now, we need to play around with the examples until we truly understand this behaviour.
