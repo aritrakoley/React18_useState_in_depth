@@ -142,8 +142,6 @@ That covers the basics before we head into the somewhat confusing behaviours.
 
 ## Onward To Quirkisthan
 
-1. Updating count twice 4 different variations
-
 ### Case 1: Naive attempt at multiple updates to a single state
 
 In the following code, we just want to increment the `count` state twice on each click of the 'Increment' button. Doing it this way does not work.
